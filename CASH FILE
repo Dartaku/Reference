@@ -1,1 +1,495 @@
-To be updated
+~~ Functions Library ~~
+
+Public CurMth, FileLoc, CashFileName, AccessDataFile As String
+Public CurMthNum, CurYear As Integer
+
+Sub DeleteWBConnections()
+Dim conn As WorkbookConnection
+Dim connName As String
+For Each conn In ActiveWorkbook.Connections
+  connName = conn
+  ActiveWorkbook.Connections(connName).Delete
+Next conn
+End Sub
+
+Sub MakeAllTablesRegularRanges()
+  Dim WS As Worksheet, LO As ListObject
+  For Each WS In Worksheets
+    For Each LO In WS.ListObjects
+      LO.Unlist
+    Next
+  Next
+End Sub
+
+Sub PreProcessing()
+CurMthNum = Month(Date) - 1
+If CurMthNum = 0 Then CurMthNum = 12
+CurMth = Left(MonthName(CurMthNum), 3)
+CurYear = Year(Date - 30)
+FileLoc = "G:\RISK_MGMT19\INVESTMENT\CIR\" & CurYear & "\" & CurMth & " " & CurYear & "\"
+CashFileName = "CASH.xlsm"
+'CashFileName = "CASH - Copy (Recovered) - Copy.xlsm"
+AccessDataFile = "G:\RISK_MGMT19\INVESTMENT\CIR\" & CurYear & "\" & CurMth & " " & CurYear & "\CIRv3.mdb"
+End Sub
+
+Sub GetAllProductsData()
+Application.DisplayAlerts = False
+Application.EnableEvents = False
+Call MTA.MTA
+Call SecuredOD.SecuredOD
+Call FXLeverage.FXLev
+Call SecuredDTL.SecuredDTL
+Call InsuranceDTLInt.InsuranceDTLInt
+Call InsuranceDTLPI.InsuranceDTLPI
+Call InsuranceDTLRT.InsuranceDTLRT
+Application.DisplayAlerts = True
+Application.EnableEvents = True
+End Sub
+
+
+~~End Function Library~~
+
+~~fxlv~~
+
+Sub FXLev()
+Dim AccessQueryTable, AccessQueryTableInCashFile As Variant
+Dim number As Integer
+Dim DisplayName As String
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+Call FunctionsLibrary.PreProcessing
+
+
+Worksheets("FX LEVERAGE").Activate
+
+Range("V:AA").Clear
+number = 1
+
+AccessQueryTable = Array("10f CIR_FX Lev_Prin_Int", "10g CIR_FX Lev_Count of Total Acct", "10h CIR_FX Lev_Prin_Int_IPB", "10hi CIR_FX Lev_Count of Total Acct_IPB", "10kii Total Limits for New Bookings_Breakdwn by Biz", "10kiv Total Count for New Bookings_Breakdwn by Biz", "Y 7bi FX Lev_AppLimit_Incr_SumTotal", "Y 7biii FX Lev_AppLimit_Incr_CountTotal", "HG 7 - Sum Total FX Lev Unused Line", "10b CIR_FX Lev_ENR Sum by DPD", "10c CIR_FX Lev_ENR Count acct by DPD", "10di CIR_FX Lev_ENR Sum by DPD_IPB", "10dii CIR_FX Lev_ENR Count acct by DPD_IPB")
+AccessQueryTableInCashFile = Array("$V$2", "$V$6", "$V$10", "$V$14", "$V$25", "$V$30", "$V$35", "$V$41", "$V$46", "$Z$2", "$Z$12", "$Z$22", "$Z$31")
+AccessQueryTableHeaderLoc = Array("$V$1", "$V$5", "$V$9", "$V$13", "$V$24", "$V$29", "$V$34", "$V$40", "$V$45", "$Z$1", "$Z$11", "$Z$21", "$Z$30")
+
+For i = 0 To UBound(AccessQueryTable)
+
+Range(AccessQueryTableHeaderLoc(i)).Value = AccessQueryTable(i)
+
+    With ActiveSheet.ListObjects.Add(SourceType:=0, Source:=Array( _
+        "OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Password="""";User ID=Admin;Data Source=AccessDataFile;Mod" _
+        , _
+        "e=Share Deny Write;Extended Properties="""";Jet OLEDB:System database="""";Jet OLEDB:Registry Path="""";Jet OLEDB:Database Password=""""" _
+        , _
+        ";Jet OLEDB:Engine Type=5;Jet OLEDB:Database Locking Mode=0;Jet OLEDB:Global Partial Bulk Ops=2;Jet OLEDB:Global Bulk Transaction" _
+        , _
+        "s=1;Jet OLEDB:New Database Password="""";Jet OLEDB:Create System Database=False;Jet OLEDB:Encrypt Database=False;Jet OLEDB:Don't C" _
+        , _
+        "opy Locale on Compact=False;Jet OLEDB:Compact Without Replica Repair=False;Jet OLEDB:SFP=False;Jet OLEDB:Support Complex Data=Fa" _
+        , "lse;Jet OLEDB:Bypass UserInfo Validation=False"), Destination:=Range( _
+        AccessQueryTableInCashFile(i))).QueryTable
+        .CommandType = xlCmdTable
+        .CommandText = AccessQueryTable(i)
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = True
+        '.RefreshStyle = xlOverwriteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+        .SourceDataFile = AccessDataFile
+        '.ListObject.DisplayName = DisplayName
+        .Refresh BackgroundQuery:=False
+    End With
+Next i
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+
+Range("E8").Formula = "=SUMIF($X$35:$X$37,""GCB"",$W$35:$W$37)+G8"
+Range("F8").Formula = "=SUMIF($W$42:$W$43,""GCB"",$V$42:$V$43)+H8"
+Range("G8").Formula = "=SUMIF($X$35:$X$37,""IPB"",$W$35:$W$37)"
+Range("H8").Formula = "=SUMIF($W$42:$W$43,""IPB"",$V$42:$V$43)"
+
+Range("B11").Formula = "=V47/1000"
+
+End Sub
+
+
+
+~~end fxlv~~
+
+~~Sub~~
+
+Sub InsuranceDTLInt()
+Dim AccessQueryTable, AccessQueryTableInCashFile As Variant
+Dim number As Integer
+Dim DisplayName As String
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+Call FunctionsLibrary.PreProcessing
+
+Worksheets("Insurance DTL Int").Activate
+
+Range("Z:AE").Value = ""
+number = 1
+
+AccessQueryTable = Array("9b CIR_Insur DTL_ENR by DPD", "9c CIR_Insur DTL_ENR Count Acct", "9ei CIR_Insur DTL_ENR by DPD_IPB", "9eii CIR_Insur DTL_ENR Count Acct_IPB", "9di CIR_Insur DTL_Prin_Int_Fees_Sum total", "9gi CIR_Insur DTL_Prin_Int_Fees_Sum total_IPB", "9i Count total no of IPB accounts_Insur DTL")
+AccessQueryTableInCashFile = Array("$Z$2", "$Z$11", "$Z$20", "$Z$29", "$Z$38", "$Z$42", "$Z$46")
+AccessQueryTableHeaderLoc = Array("$Z$1", "$Z$10", "$Z$19", "$Z$28", "$Z$37", "$Z$41", "$Z$45")
+
+For i = 0 To UBound(AccessQueryTable)
+
+Range(AccessQueryTableHeaderLoc(i)).Value = AccessQueryTable(i)
+
+    With ActiveSheet.ListObjects.Add(SourceType:=0, Source:=Array( _
+        "OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Password="""";User ID=Admin;Data Source=AccessDataFile" _
+        , _
+        "e=Share Deny Write;Extended Properties="""";Jet OLEDB:System database="""";Jet OLEDB:Registry Path="""";Jet OLEDB:Database Password=""""" _
+        , _
+        ";Jet OLEDB:Engine Type=5;Jet OLEDB:Database Locking Mode=0;Jet OLEDB:Global Partial Bulk Ops=2;Jet OLEDB:Global Bulk Transaction" _
+        , _
+        "s=1;Jet OLEDB:New Database Password="""";Jet OLEDB:Create System Database=False;Jet OLEDB:Encrypt Database=False;Jet OLEDB:Don't C" _
+        , _
+        "opy Locale on Compact=False;Jet OLEDB:Compact Without Replica Repair=False;Jet OLEDB:SFP=False;Jet OLEDB:Support Complex Data=Fa" _
+        , "lse;Jet OLEDB:Bypass UserInfo Validation=False"), Destination:=Range( _
+        AccessQueryTableInCashFile(i))).QueryTable
+        .CommandType = xlCmdTable
+        .CommandText = AccessQueryTable(i)
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = True
+        '.RefreshStyle = xlOverwriteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+        .SourceDataFile = AccessDataFile
+        '.ListObject.DisplayName = DisplayName
+        .Refresh BackgroundQuery:=False
+    End With
+Next i
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+
+End Sub
+
+
+Sub InsuranceDTLPI()
+Dim AccessQueryTable, AccessQueryTableInCashFile As Variant
+Dim number As Integer
+Dim DisplayName As String
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+Call FunctionsLibrary.PreProcessing
+
+Worksheets("Insurance DTL P+I").Activate
+
+Range("Z:AE").Value = ""
+number = 1
+
+AccessQueryTable = Array("9b CIR_Insur DTL w P_ENR by DPD", "9c CIR_Insur DTL w P_ENR Count Acct", "9ei CIR_Insur DTL w P_ENR by DPD_IPB", "9eii CIR_Insur DTL w P_ENR Count Acct_IPB", "9di CIR_Insur DTL w P_Prin_Int_Fees_Sum total", "9gi CIR_Insur DTL w P_Prin_Int_Fees_Sum total_IPB", "9i Count total no of IPB accounts_Insur DTL w P")
+AccessQueryTableInCashFile = Array("$Z$2", "$Z$11", "$Z$20", "$Z$29", "$Z$38", "$Z$42", "$Z$46")
+AccessQueryTableHeaderLoc = Array("$Z$1", "$Z$10", "$Z$19", "$Z$28", "$Z$37", "$Z$41", "$Z$45")
+
+For i = 0 To UBound(AccessQueryTable)
+
+Range(AccessQueryTableHeaderLoc(i)).Value = AccessQueryTable(i)
+
+    With ActiveSheet.ListObjects.Add(SourceType:=0, Source:=Array( _
+        "OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Password="""";User ID=Admin;Data Source=AccessDataFile;Mod" _
+        , _
+        "e=Share Deny Write;Extended Properties="""";Jet OLEDB:System database="""";Jet OLEDB:Registry Path="""";Jet OLEDB:Database Password=""""" _
+        , _
+        ";Jet OLEDB:Engine Type=5;Jet OLEDB:Database Locking Mode=0;Jet OLEDB:Global Partial Bulk Ops=2;Jet OLEDB:Global Bulk Transaction" _
+        , _
+        "s=1;Jet OLEDB:New Database Password="""";Jet OLEDB:Create System Database=False;Jet OLEDB:Encrypt Database=False;Jet OLEDB:Don't C" _
+        , _
+        "opy Locale on Compact=False;Jet OLEDB:Compact Without Replica Repair=False;Jet OLEDB:SFP=False;Jet OLEDB:Support Complex Data=Fa" _
+        , "lse;Jet OLEDB:Bypass UserInfo Validation=False"), Destination:=Range( _
+        AccessQueryTableInCashFile(i))).QueryTable
+        .CommandType = xlCmdTable
+        .CommandText = AccessQueryTable(i)
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = True
+        '.RefreshStyle = xlOverwriteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+        .SourceDataFile = AccessDataFile
+        '.ListObject.DisplayName = DisplayName
+        .Refresh BackgroundQuery:=False
+    End With
+Next i
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+
+End Sub
+
+
+
+
+
+Sub InsuranceDTLRT()
+Dim AccessQueryTable, AccessQueryTableInCashFile As Variant
+Dim number As Integer
+Dim DisplayName As String
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+Call FunctionsLibrary.PreProcessing
+
+Worksheets("Insurance DTL(Restricted tenor)").Activate
+
+Range("Z:AE").Value = ""
+number = 1
+
+AccessQueryTable = Array("9b CIR_Insur DTL w RT_ENR by DPD", "9c CIR_Insur DTL w RT_ENR Count Acct", "9ei CIR_Insur DTL w RT_ENR by DPD_IPB", "9eii CIR_Insur DTL w RT_ENR Count Acct_IPB", "9di CIR_Insur DTL w RT_Prin_Int_Fees_Sum total", "9gi CIR_Insur DTL w RT_Prin_Int_Fees_Sum total_IPB", "9i Count total no of IPB accounts_Insur DTL w RT")
+AccessQueryTableInCashFile = Array("$Z$2", "$Z$11", "$Z$20", "$Z$29", "$Z$38", "$Z$42", "$Z$46")
+AccessQueryTableHeaderLoc = Array("$Z$1", "$Z$10", "$Z$19", "$Z$28", "$Z$37", "$Z$41", "$Z$45")
+
+For i = 0 To UBound(AccessQueryTable)
+
+Range(AccessQueryTableHeaderLoc(i)).Value = AccessQueryTable(i)
+
+    With ActiveSheet.ListObjects.Add(SourceType:=0, Source:=Array( _
+        "OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Password="""";User ID=Admin;Data Source=AccessDataFile;Mod" _
+        , _
+        "e=Share Deny Write;Extended Properties="""";Jet OLEDB:System database="""";Jet OLEDB:Registry Path="""";Jet OLEDB:Database Password=""""" _
+        , _
+        ";Jet OLEDB:Engine Type=5;Jet OLEDB:Database Locking Mode=0;Jet OLEDB:Global Partial Bulk Ops=2;Jet OLEDB:Global Bulk Transaction" _
+        , _
+        "s=1;Jet OLEDB:New Database Password="""";Jet OLEDB:Create System Database=False;Jet OLEDB:Encrypt Database=False;Jet OLEDB:Don't C" _
+        , _
+        "opy Locale on Compact=False;Jet OLEDB:Compact Without Replica Repair=False;Jet OLEDB:SFP=False;Jet OLEDB:Support Complex Data=Fa" _
+        , "lse;Jet OLEDB:Bypass UserInfo Validation=False"), Destination:=Range( _
+        AccessQueryTableInCashFile(i))).QueryTable
+        .CommandType = xlCmdTable
+        .CommandText = AccessQueryTable(i)
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = True
+        '.RefreshStyle = xlOverwriteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+        .SourceDataFile = AccessDataFile
+        '.ListObject.DisplayName = DisplayName
+        .Refresh BackgroundQuery:=False
+    End With
+Next i
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+
+End Sub
+
+
+
+
+
+
+
+Sub MTA()
+Dim AccessQueryTable, AccessQueryTableInCashFile As Variant
+Dim number As Integer
+Dim DisplayName As String
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+Call FunctionsLibrary.PreProcessing
+
+Worksheets("MTA 441.441").Activate
+
+Range("V:AB").Value = ""
+number = 1
+
+AccessQueryTable = Array("7b CIR_MTA_ENR by DPD", "7c CIR_MTA_ENR Count Acct", "7d CIR_MTA_Inactive acct_Count", "7e CIR_MTA_Inactive acct_Sum TOTALLIMIT", "7g CIR_MTA_New Bookings_Count", "7h CIR_MTA_New Bookings_Sum TOTALLIMIT", "Y 5bi MTA_AppLimit_Incr_Sumtotal", "Y 5biii MTA_AppLimit_Incr_CountTotal")
+AccessQueryTableInCashFile = Array("$V$2", "$Y$2", "$AB$2", "$AB$6", "$AB$10", "$AB$14", "$AB$18", "$AB$22")
+AccessQueryTableHeaderLoc = Array("$V$1", "$Y$1", "$AB$1", "$AB$5", "$AB$9", "$AB$13", "$AB$17", "$AB$21")
+
+For i = 0 To UBound(AccessQueryTable)
+
+Range(AccessQueryTableHeaderLoc(i)).Value = AccessQueryTable(i)
+
+    With ActiveSheet.ListObjects.Add(SourceType:=0, Source:=Array( _
+        "OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Password="""";User ID=Admin;Data Source=AccessDataFile;Mod" _
+        , _
+        "e=Share Deny Write;Extended Properties="""";Jet OLEDB:System database="""";Jet OLEDB:Registry Path="""";Jet OLEDB:Database Password=""""" _
+        , _
+        ";Jet OLEDB:Engine Type=5;Jet OLEDB:Database Locking Mode=0;Jet OLEDB:Global Partial Bulk Ops=2;Jet OLEDB:Global Bulk Transaction" _
+        , _
+        "s=1;Jet OLEDB:New Database Password="""";Jet OLEDB:Create System Database=False;Jet OLEDB:Encrypt Database=False;Jet OLEDB:Don't C" _
+        , _
+        "opy Locale on Compact=False;Jet OLEDB:Compact Without Replica Repair=False;Jet OLEDB:SFP=False;Jet OLEDB:Support Complex Data=Fa" _
+        , "lse;Jet OLEDB:Bypass UserInfo Validation=False"), Destination:=Range( _
+        AccessQueryTableInCashFile(i))).QueryTable
+        .CommandType = xlCmdTable
+        .CommandText = AccessQueryTable(i)
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = True
+        '.RefreshStyle = xlOverwriteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+        .SourceDataFile = AccessDataFile
+        '.ListObject.DisplayName = DisplayName
+        .Refresh BackgroundQuery:=False
+    End With
+Next i
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+
+End Sub
+
+Sub SecuredDTL()
+Dim AccessQueryTable, AccessQueryTableInCashFile As Variant
+Dim number As Integer
+Dim DisplayName As String
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+Call FunctionsLibrary.PreProcessing
+
+Worksheets("Secured DTL").Activate
+
+Range("Z:AC").Value = ""
+number = 1
+
+AccessQueryTable = Array("9b CIR_DTL_ENR by DPD", "9c CIR_DTL_ENR Count Acct", "9di CIR_DTL_Prin_Int_Fees_Sum total", "9ei CIR_DTL_ENR by DPD_IPB", "9eii CIR_DTL_ENR Count Acct_IPB", "9gi CIR_DTL_Prin_Int_Fees_Sum total_IPB", "9ji TotalLimits for New Bookings", "9jii Total Limits for New Bookings_Breakdwn by Biz", "9jiii TotalCount for New Bookings", "9jiv Total Count for New Bookings_Breakdwn by Biz", "Y 8bi DTL_AppLimit_Incr_SumTotal", "Y 8biii DTL_AppLimit_Incr_CountTotal", "X3 - Total Unused DTL Limits", "*BaselRecon-PF Sum")
+AccessQueryTableInCashFile = Array("$Z$2", "$Z$11", "$Z$20", "$Z$25", "$Z$35", "$Z$43", "$Z$48", "$Z$53", "$Z$59", "$Z$64", "$Z$70", "$Z$76", "$Z$82", "$Z$86")
+AccessQueryTableHeaderLoc = Array("$Z$1", "$Z$10", "$Z$19", "$Z$24", "$Z$34", "$Z$42", "$Z$47", "$Z$52", "$Z$58", "$Z$63", "$Z$69", "$Z$75", "$Z$81", "$Z$85")
+
+For i = 0 To UBound(AccessQueryTable)
+
+Range(AccessQueryTableHeaderLoc(i)).Value = AccessQueryTable(i)
+
+    With ActiveSheet.ListObjects.Add(SourceType:=0, Source:=Array( _
+        "OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Password="""";User ID=Admin;Data Source=AccessDataFile;Mod" _
+        , _
+        "e=Share Deny Write;Extended Properties="""";Jet OLEDB:System database="""";Jet OLEDB:Registry Path="""";Jet OLEDB:Database Password=""""" _
+        , _
+        ";Jet OLEDB:Engine Type=5;Jet OLEDB:Database Locking Mode=0;Jet OLEDB:Global Partial Bulk Ops=2;Jet OLEDB:Global Bulk Transaction" _
+        , _
+        "s=1;Jet OLEDB:New Database Password="""";Jet OLEDB:Create System Database=False;Jet OLEDB:Encrypt Database=False;Jet OLEDB:Don't C" _
+        , _
+        "opy Locale on Compact=False;Jet OLEDB:Compact Without Replica Repair=False;Jet OLEDB:SFP=False;Jet OLEDB:Support Complex Data=Fa" _
+        , "lse;Jet OLEDB:Bypass UserInfo Validation=False"), Destination:=Range( _
+        AccessQueryTableInCashFile(i))).QueryTable
+        .CommandType = xlCmdTable
+        .CommandText = AccessQueryTable(i)
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = True
+        '.RefreshStyle = xlOverwriteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+        .SourceDataFile = AccessDataFile
+        '.ListObject.DisplayName = DisplayName
+        .Refresh BackgroundQuery:=False
+    End With
+Next i
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+
+End Sub
+
+
+
+
+
+
+
+Sub SecuredOD()
+Dim AccessQueryTable, AccessQueryTableInCashFile As Variant
+Dim number As Integer
+Dim DisplayName As String
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+Call FunctionsLibrary.PreProcessing
+
+Worksheets("Secured OD 441.421").Activate
+
+Range("X:AM").Value = ""
+number = 1
+
+AccessQueryTable = Array("8b CIR_OD_New Bookings_Count", "8c CIR_OD_New Bookings_Sum TOTALLIMIT", "8e CIR_OD_Inactive acct_Count", "8f CIR_OD_Inactive acct_Sum TOTALLIMIT", "8ki CIR_OD_Unused Lines_Sum Total", "Y 6bi Secured OD_AppLimit_Incr_SumTotal", "Y 6biii Secured OD_AppLimit_Incr_CountTotal", "8gi CIR_OD_ENR_IPB_DPD Count", "8gii CIR_OD_ENR_IPB_DPD Sum OS", "8hi CIR_OD_ENR_All_DPD Count", "8hii CIR_OD_ENR_All_DPD Sum OS")
+AccessQueryTableInCashFile = Array("$X$2", "$X$6", "$X$12", "$X$16", "$X$20", "$X$24", "$X$29", "$AC$6", "$AF$6", "$AI$6", "$AL$6")
+AccessQueryTableHeaderLoc = Array("$X$1", "$X$5", "$X$11", "$X$15", "$X$19", "$X$23", "$X$28", "$AC$5", "$AF$5", "$AI$5", "$AL$5")
+
+For i = 0 To UBound(AccessQueryTable)
+
+Range(AccessQueryTableHeaderLoc(i)).Value = AccessQueryTable(i)
+
+    With ActiveSheet.ListObjects.Add(SourceType:=0, Source:=Array( _
+        "OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Password="""";User ID=Admin;Data Source=AccessDataFile;Mod" _
+        , _
+        "e=Share Deny Write;Extended Properties="""";Jet OLEDB:System database="""";Jet OLEDB:Registry Path="""";Jet OLEDB:Database Password=""""" _
+        , _
+        ";Jet OLEDB:Engine Type=5;Jet OLEDB:Database Locking Mode=0;Jet OLEDB:Global Partial Bulk Ops=2;Jet OLEDB:Global Bulk Transaction" _
+        , _
+        "s=1;Jet OLEDB:New Database Password="""";Jet OLEDB:Create System Database=False;Jet OLEDB:Encrypt Database=False;Jet OLEDB:Don't C" _
+        , _
+        "opy Locale on Compact=False;Jet OLEDB:Compact Without Replica Repair=False;Jet OLEDB:SFP=False;Jet OLEDB:Support Complex Data=Fa" _
+        , "lse;Jet OLEDB:Bypass UserInfo Validation=False"), Destination:=Range( _
+        AccessQueryTableInCashFile(i))).QueryTable
+        .CommandType = xlCmdTable
+        .CommandText = AccessQueryTable(i)
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = True
+        '.RefreshStyle = xlOverwriteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+        .SourceDataFile = AccessDataFile
+        '.ListObject.DisplayName = DisplayName
+        .Refresh BackgroundQuery:=False
+    End With
+Next i
+
+Call FunctionsLibrary.DeleteWBConnections
+Call FunctionsLibrary.MakeAllTablesRegularRanges
+
+End Sub
+
+
+
+
+
+~~End~~
