@@ -1,4 +1,382 @@
+~~Mail Code~~
 
-test
-test
-test
+Sub Mail_Selection_Range_Outlook_Body()
+
+
+
+'For Tips see: http://www.rondebruin.nl/win/winmail/Outlook/tips.htm
+'Don't forget to copy the function RangetoHTML in the module.
+'Working in Excel 2000-2016
+    Dim rng As Range
+    Dim OutApp As Object
+    Dim OutMail As Object
+    Dim SigString As String
+    Dim Signature As String
+
+    Set rng = Nothing
+    On Error Resume Next
+    'Only the visible cells in the selection
+    'Set rng = Selection.SpecialCells(xlCellTypeVisible)
+    'You can also use a fixed range if you want
+    
+    'Set rng = Sheets("Current").Range("B2:H28").SpecialCells(xlCellTypeVisible)
+    'On Error GoTo 0
+
+    'If rng Is Nothing Then
+    '    MsgBox "The selection is not a range or the sheet is protected" & _
+    '           vbNewLine & "please correct and try again.", vbOKOnly
+    '    Exit Sub
+    'End If
+
+    'Change only Mysig.htm to the name of your signature
+    SigString = Environ("appdata") & _
+                "\Microsoft\Signatures\Default Thanks.htm"
+
+    If Dir(SigString) <> "" Then
+        Signature = GetBoiler(SigString)
+    Else
+        Signature = ""
+    End If
+
+    With Application
+        .EnableEvents = False
+        .ScreenUpdating = False
+    End With
+
+
+
+    Set OutApp = CreateObject("Outlook.Application")
+    Set OutMail = OutApp.CreateItem(0)
+
+    On Error Resume Next
+    With OutMail
+        .To = RecipientList
+        .CC = CCList
+        .BCC = ""
+        .Subject = "PF Delq as of " & DayDD & " " & MonthNameN & " " & YearYYYY
+        .HTMLBody = EmailBodyText & Signature
+        .Attachments.Add (AttachmentAdd)
+        .Display   'or use .Send
+    End With
+    On Error GoTo 0
+
+    With Application
+        .EnableEvents = True
+        .ScreenUpdating = True
+    End With
+
+    Set OutMail = Nothing
+    Set OutApp = Nothing
+End Sub
+
+
+Function RangetoHTML(rng As Range)
+' Changed by Ron de Bruin 28-Oct-2006
+' Working in Office 2000-2016
+    Dim fso As Object
+    Dim ts As Object
+    Dim TempFile As String
+    Dim TempWB As Workbook
+
+    TempFile = Environ$("temp") & "\" & Format(Now, "dd-mm-yy h-mm-ss") & ".htm"
+
+    'Copy the range and create a new workbook to past the data in
+    rng.Copy
+    Set TempWB = Workbooks.Add(1)
+    With TempWB.Sheets(1)
+        .Cells(1).PasteSpecial Paste:=8
+        .Cells(1).PasteSpecial xlPasteValues, , False, False
+        .Cells(1).PasteSpecial xlPasteFormats, , False, False
+            With Selection.Font 'Added to set formatting to black - Darryl
+            .ColorIndex = xlAutomatic
+            .TintAndShade = 0
+            End With
+        .Cells(1).Select
+        Application.CutCopyMode = False
+        On Error Resume Next
+        .DrawingObjects.Visible = True
+        .DrawingObjects.Delete
+        On Error GoTo 0
+    End With
+
+    'Publish the sheet to a htm file
+    With TempWB.PublishObjects.Add( _
+         SourceType:=xlSourceRange, _
+         Filename:=TempFile, _
+         Sheet:=TempWB.Sheets(1).Name, _
+         Source:=TempWB.Sheets(1).UsedRange.Address, _
+         HtmlType:=xlHtmlStatic)
+        .Publish (True)
+    End With
+
+    'Read all data from the htm file into RangetoHTML
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set ts = fso.GetFile(TempFile).OpenAsTextStream(1, -2)
+    RangetoHTML = ts.readall
+    ts.Close
+    RangetoHTML = Replace(RangetoHTML, "align=center x:publishsource=", _
+                          "align=left x:publishsource=")
+
+    'Close TempWB
+    TempWB.Close savechanges:=False
+
+    'Delete the htm file we used in this function
+    Kill TempFile
+
+    Set ts = Nothing
+    Set fso = Nothing
+    Set TempWB = Nothing
+End Function
+
+Function GetBoiler(ByVal sFile As String) As String
+'By Dick Kusleika
+    Dim fso As Object
+    Dim ts As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set ts = fso.GetFile(sFile).OpenAsTextStream(1, -2)
+    GetBoiler = ts.readall
+    ts.Close
+End Function
+
+~~End Mail Code~~
+
+
+~~Main Code~~
+
+Public RecipientList, CCList, RecipientName, YearYYYY, MonthMM, DayDD, MonthNameN, Password, FilePath, FilePath2, AttachmentAdd, EmailBodyText As String
+
+Sub Wait()
+MsgBox ("This application is started and will resume at 9.25AM!")
+Application.Wait "09:25:00"
+'MsgBox ("Excecution resumed after 9.25AM")
+End Sub
+
+Sub PreProcessing()
+YearYYYY = DatePart("yyyy", Date)
+MonthMM = Format(Month(Date), "00")
+DayDD = Format(Day(Date), "00")
+MonthNameN = MonthName(MonthMM)
+Password = "Citi" & YearYYYY
+
+'YearYYYY = 2017
+'MonthMM = 8
+'DayDD = 14
+
+FilePath = "G:\RISK_MGMT19\INVESTMENT\Huey chyi\PF delq\PF_DELQ_" & YearYYYY & MonthMM & DayDD & ".xlsx"
+FilePath2 = "G:\RISK_MGMT19\INVESTMENT\Huey chyi\PF delq\PF_DELQ_" & YearYYYY & MonthMM & DayDD & " GCB.xlsx"
+
+End Sub
+
+Sub SendToRanjoy()
+Call PreProcessing
+Application.ScreenUpdating = False
+Application.DisplayAlerts = False
+
+Set PFDelqFile = Workbooks.Open(Filename:=FilePath, Password:=Password) ' open workbook and set reference!
+Range("R1").Select
+Selection.AutoFilter
+'Get GCB Potential DPD Amount
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=9, Criteria1:="GCG"
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=19, Criteria1:="y"
+Cells(1, 100).Formula = "=ROUND(SUBTOTAL(9,F2:F1048576),-5)/1000000"
+GCBDPDAmount = Cells(1, 100).Value & "MM"
+GCBDPDCount = Application.WorksheetFunction.Subtotal(3, Range("A2:A500000"))
+ActiveSheet.ShowAllData
+
+'Get IPB Potential DPD Amount
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=9, Criteria1:="IPB"
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=19, Criteria1:="y"
+IPBDPDAmount = Cells(1, 100).Value & "MM"
+IPBDPDCount = Application.WorksheetFunction.Subtotal(3, Range("A2:A500000"))
+ActiveSheet.ShowAllData
+
+'Get NRI Potential DPD Amount
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=9, Criteria1:="NRI"
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=19, Criteria1:="y"
+NRIDPDAmount = Cells(1, 100).Value & "MM"
+NRIDPDCount = Application.WorksheetFunction.Subtotal(3, Range("A2:A500000"))
+ActiveSheet.ShowAllData
+Cells(1, 100).Clear
+
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=19, Criteria1:="y"
+PFDelqFile.Close savechanges:=True
+AttachmentAdd = FilePath
+
+If IPBDPDCount = 1 Then IPBAccountEnglish = "account" Else IPBAccountEnglish = "accounts"
+If GCBDPDCount = 1 Then GCBAccountEnglish = "account" Else GCBAccountEnglish = "accounts"
+If NRIDPDCount = 1 Then NRIAccountEnglish = "account" Else NRIAccountEnglish = "accounts"
+
+RecipientList = "Mitra, Ranjoy;"
+CCList = "DN77263;" & " CN17026;"
+EmailBodyText = "Hi Ranjoy,<br><br>" & vbNewLine & "Attached for PF Delq as of today's run.<br><br>GCB Potential 30+ DPD has " & GCBDPDCount & " " & GCBAccountEnglish & " which amounts to " & GCBDPDAmount & "<br>IPB Potential 30+ DPD has " & IPBDPDCount & " " & IPBAccountEnglish & " which amounts to " & IPBDPDAmount & "<br>" & "NRI Potential 30+ DPD has " & NRIDPDCount & " " & NRIAccountEnglish & " which amounts to " & NRIDPDAmount & "<br><br>"
+Call Mail_Selection_Range_Outlook_Body
+Application.ScreenUpdating = True
+Application.DisplayAlerts = True
+End Sub
+
+Sub SendToMark()
+Call PreProcessing
+Application.ScreenUpdating = False
+Application.DisplayAlerts = False
+Set PFDelqFile = Workbooks.Open(Filename:=FilePath, Password:=Password) ' open workbook and set reference!
+Range("R1").Select
+Selection.AutoFilter
+
+'Get GCB Potential DPD Amount
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=9, Criteria1:="GCG"
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=19, Criteria1:="y"
+Cells(1, 100).Formula = "=ROUND(SUBTOTAL(9,F2:F1048576),-5)/1000000"
+GCBDPDAmount = Cells(1, 100).Value & "MM"
+ActiveSheet.ShowAllData
+
+ActiveSheet.Range("$A$1:$U$144").AutoFilter Field:=9, Criteria1:="IPB"
+Rows("2:65536").Select
+Selection.Clear
+ActiveSheet.ShowAllData
+
+PFDelqFile.SaveAs Filename:=FilePath2, Password:=Password
+PFDelqFile.Close savechanges:=True
+AttachmentAdd = FilePath2
+
+RecipientList = "*GCB SG Retail Banking - Loans"
+CCList = "DN77263;" & " CN17026;"
+EmailBodyText = "Hi Jerrall,<br><br>" & vbNewLine & "Attached for PF Delq as of today's run<br><br> GCB Potential 30+ DPD is " & GCBDPDAmount & "<br><br>"
+
+Call Mail_Selection_Range_Outlook_Body
+Call DeleteFile(FilePath2)
+Application.ScreenUpdating = True
+Application.DisplayAlerts = True
+End Sub
+
+Sub RetrievePFDelqFromServer()
+Call RunningSAS.RunSASProgram
+End Sub
+
+Sub RunAll()
+Call PreProcessing
+Call RunningSAS.RunSASProgram
+Call PasswordProtectExcel
+Call SendToMark
+Call SendToRanjoy
+End Sub
+
+Sub RunAllWithWaiting()
+Call Wait
+Call PreProcessing
+Call RunningSAS.RunSASProgram
+Call PasswordProtectExcel
+Call SendToMark
+Call SendToRanjoy
+End Sub
+
+Sub PasswordProtectExcel()
+Call PreProcessing
+Application.ScreenUpdating = False
+Application.DisplayAlerts = False
+Set PFDelqFile = Workbooks.Open(FilePath) ' open workbook and set reference!
+PFDelqFile.SaveAs Filename:=FilePath, Password:=Password
+PFDelqFile.Close savechanges:=True
+Application.ScreenUpdating = True
+Application.DisplayAlerts = True
+End Sub
+
+Function FileExists(ByVal FileToTest As String) As Boolean
+   FileExists = (Dir(FileToTest) <> "")
+End Function
+
+Sub DeleteFile(ByVal FileToDelete As String)
+   If FileExists(FileToDelete) Then 'See above
+      ' First remove readonly attribute, if set
+      SetAttr FileToDelete, vbNormal
+      ' Then delete the file
+      Kill FileToDelete
+   End If
+End Sub
+
+
+~~End Main Code~
+
+
+~~SAS Code from excel~~
+
+Option Explicit
+Public SASApp 'Application
+Public Project 'Project object
+Public sasProgram 'Code object (SAS program)
+Public log1 As String
+
+Sub OpenSASConnection()
+Set SASApp = CreateObject("SASEGObjectModel.Application.5.1")
+Dim i As Long
+Dim x(0 To 10) As String
+For i = 1 To SASApp.Profiles.Count - 1
+x(i) = "Profile available: " _
+& SASApp.Profiles.Item(i).Name _
+& ", Host: " & SASApp.Profiles.Item(i).HostName _
+& ", Port: " & SASApp.Profiles.Item(i).Port
+Next
+End Sub
+
+Sub RunSASProgram()
+Call OpenSASConnection
+
+' Set to your metadata profile name
+'SASApp.SetActiveProfile ("Darryl")
+' Create a new Project
+Set Project = SASApp.New
+' Add a new code object to the Project
+Set sasProgram = Project.CodeCollection.Add
+' set the results types, overriding Application defaults
+sasProgram.UseApplicationOptions = False
+sasProgram.GenListing = True
+sasProgram.GenSasReport = False
+' Set the server
+sasProgram.Server = "SASApp"
+' Get current workbook path
+Dim DatafileDir As String
+DatafileDir = ThisWorkbook.Path
+' Create the SAS program to run
+    'sasProgram.Text = "libname data1 " & Chr(34) & _
+    '"/sas/risk/analysis/data" & Chr(34) & ";" & _
+    '"data work.bmtvar; set data1.bmtvar; run;"
+
+sasProgram.Text = ""
+Dim Z As Integer
+For Z = 2 To 81
+sasProgram.Text = sasProgram.Text + Worksheets("SAS Codes").Cells(Z, 2).Value
+Next Z
+
+'sasProgram.Text = Worksheets("SAS Codes").Range("H1").Value
+
+' Run the code
+sasProgram.Run
+
+' Export SAS dataset to local xlsx files
+Dim n As Integer
+Dim dataName
+For n = 0 To (sasProgram.OutputDatasets.Count - 1)
+dataName = sasProgram.OutputDatasets.Item(n).Name
+sasProgram.OutputDatasets.Item(n).SaveAs _
+DatafileDir & "\" & dataName & ".xlsx"
+Next
+
+' Save the log file to LOCAL disk
+sasProgram.Log.SaveAs _
+DatafileDir & "\" & "script1.log"
+log1 = sasProgram.Log.Text
+'MsgBox sasProgram.Log.Text
+End Sub
+
+Sub TransferData()
+Dim wb, WB2 As Workbook
+Dim WS As Worksheet
+
+wb = Workbooks.Open("G:\RISK_MGMT\INVEST\Darryl\Data Reporting\1 - Monthly Task\Reporting\001 - FX Rates Update\GETUPDATECCYCODES.xlsx")
+
+End Sub
+
+
+
+
+
+~~End SAS Code from excel~~
