@@ -1,0 +1,9 @@
+
+PROC SQL;
+     CREATE TABLE Final2 AS
+     Select distinct
+     a.*
+     FROM Final a left join Final b on (a.CLNT_NBR = b.CLNT_NBR AND a.MIS_DT < b.MIS_DT)
+     WHERE b.MIS_DT is null
+     Order by 3;
+QUIT;
