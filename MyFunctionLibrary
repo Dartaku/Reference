@@ -1,3 +1,14 @@
+Public CurMthNum, CurrentMonthName, CurrentDay, CurrentYear
+
+Sub GetTodayDate()
+CurMthNum = Month(Date)
+If CurMthNum = 0 Then CurMthNum = 12
+CurrentMonthName = Left(MonthName(CurMthNum), 3)
+
+CurrentDay = Day(Date)
+CurrentYear = Year(Date)
+End Sub
+
 Public Function LastRow(Col) As Integer
 LastRow = Cells(Rows.Count, Col).End(xlUp).Row
 End Function
