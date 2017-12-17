@@ -1,0 +1,27 @@
+Public Function LastRow(Col) As Integer
+LastRow = Cells(Rows.Count, Col).End(xlUp).Row
+End Function
+
+Public Function FirstRow(Col) As Integer
+FirstRow = Cells(1, Col).End(xlDown).Row
+End Function
+
+Public Function FirstRowUp(Row, Col) As Integer
+FirstRowUp = Cells(Row, Col).End(xlUp).Row
+End Function
+
+Public Function NextRowDown(Row, Col) As Integer
+NextRowDown = Cells(Row, Col).End(xlDown).Row
+End Function
+
+Public Function CountRows(AlphabetRange) As Integer
+CountRows = Application.CountA(Range(AlphabetRange & ":" & AlphabetRange))
+End Function
+
+Public Function WorkBookName() As String
+WorkBookName = ActiveWorkbook.Name
+End Function
+
+Public Function SheetName() As String
+SheetName = ActiveSheet.Name
+End Function
