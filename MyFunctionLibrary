@@ -36,3 +36,18 @@ End Function
 Public Function SheetName() As String
 SheetName = ActiveSheet.Name
 End Function
+
+
+'Function LoopThroughFiles(inputDirectoryToScanForFile, filenameCriteria) As String
+
+'    Dim StrFile As String
+    'Debug.Print "in LoopThroughFiles. inputDirectoryToScanForFile: ", inputDirectoryToScanForFile
+
+'    StrFile = Dir(inputDirectoryToScanForFile & "\*" & filenameCriteria)
+'    Do While Len(StrFile) > 0
+'        Debug.Print StrFile
+'        StrFile = Dir
+
+'    Loop
+
+'End Function
